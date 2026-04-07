@@ -1,0 +1,307 @@
+# InventoryScraper — Architecture & Implementation Plan
+
+A Python-based web scraper dashboard for extracting product inventory data from luxury brand e-commerce websites. Scrape on-demand, view results in a polished dashboard, and export to CSV/Excel.
+
+## Target Websites (6 brands)
+
+| # | Brand | URL | Category | Anti-Bot Level |
+|---|-------|-----|----------|---------------|
+| 1 | On Running | on.com/en-us | Shoes/Apparel | Medium (JS-heavy) |
+| 2 | Hoka | hoka.com/en/us | Shoes | High (blocks HTTP 406) |
+| 3 | Acne Studios | acnestudios.com/us/en | Fashion | Medium (JS-rendered) |
+| 4 | Maison Margiela | maisonmargiela.com/wx | Fashion | High (blocks HTTP 403) |
+| 5 | Hourglass Cosmetics | hourglasscosmetics.com | Cosmetics | Low-Medium |
+| 6 | Drunk Elephant | drunkelephant.com | Skincare | Low-Medium |
+
+> [!IMPORTANT]
+> Hoka and Maison Margiela actively block plain HTTP requests (406/403). All scrapers will use **Playwright** (headless browser) with stealth plugins to handle JS-rendered content and anti-bot protections uniformly.
+
+---
+
+## Tech Stack
+
+| Layer | Technology | Rationale |
+|-------|-----------|-----------|
+| **Backend** | Python 3.11+ / FastAPI | Async support, lightweight, great for APIs |
+| **Scraping** | Playwright (async) | Handles JS rendering, stealth mode, reliable |
+| **Database** | SQLite + SQLAlchemy | Zero setup, handles thousands of products easily, migrateable later |
+| **Frontend** | Vanilla HTML/CSS/JS | Lightweight, no build step, easy to migrate to React later |
+| **Export** | openpyxl + csv | Excel and CSV export |
+
+> [!NOTE]
+> **SQLite capacity**: SQLite handles databases up to 281 TB and millions of rows. For 20 brands × ~500 products each = ~10,000 products with variants, SQLite is more than sufficient. When you're ready to deploy, we can migrate to PostgreSQL with minimal changes (SQLAlchemy abstracts this).
+
+---
+
+## Project Structure
+
+```
+InventoryScraper/
+├── backend/
+│   ├── main.py                    # FastAPI app entry point
+│   ├── config.py                  # App configuration
+│   ├── requirements.txt           # Python dependencies
+│   │
+│   ├── database/
+│   │   ├── __init__.py
+│   │   ├── db.py                  # DB engine, session management
+│   │   └── models.py             # SQLAlchemy ORM models
+│   │
+│   ├── scrapers/
+│   │   ├── __init__.py
+│   │   ├── base_scraper.py       # Abstract base scraper class
+│   │   ├── on_scraper.py         # On Running
+│   │   ├── hoka_scraper.py       # Hoka
+│   │   ├── acne_scraper.py       # Acne Studios
+│   │   ├── margiela_scraper.py   # Maison Margiela
+│   │   ├── hourglass_scraper.py  # Hourglass Cosmetics
+│   │   └── drunk_elephant_scraper.py  # Drunk Elephant
+│   │
+│   ├── services/
+│   │   ├── __init__.py
+│   │   ├── scrape_service.py     # Orchestrates scraping jobs
+│   │   └── export_service.py     # CSV/Excel export logic
+│   │
+│   └── utils/
+│       ├── __init__.py
+│       ├── anti_detect.py        # User-agent rotation, random delays
+│       └── proxy_manager.py      # Optional proxy rotation
+│
+├── frontend/
+│   ├── index.html                # Single-page dashboard
+│   ├── css/
+│   │   └── styles.css            # Dark theme, polished design
+│   └── js/
+│       ├── app.js                # Main app logic
+│       ├── api.js                # API client
+│       └── components.js         # UI component renderers
+│
+├── data/                         # Created at runtime
+│   └── inventory.db              # SQLite database
+│
+└── README.md
+```
+
+---
+
+## Database Schema
+
+```mermaid
+erDiagram
+    Brand ||--o{ Product : has
+    Product ||--o{ Variant : has
+    Brand ||--o{ ScrapeJob : triggers
+
+    Brand {
+        int id PK
+        string name
+        string slug
+        string base_url
+        string logo_url
+        datetime created_at
+    }
+
+    Product {
+        int id PK
+        int brand_id FK
+        string name
+        string url
+        string image_url
+        float price
+        string currency
+        string category
+        string description
+        datetime last_scraped
+        datetime created_at
+    }
+
+    Variant {
+        int id PK
+        int product_id FK
+        string size
+        string color
+        string color_hex
+        boolean in_stock
+        int quantity "nullable, only if site exposes it"
+        string sku
+    }
+
+    ScrapeJob {
+        int id PK
+        int brand_id FK
+        string status "pending|running|completed|failed"
+        int products_found
+        int variants_found
+        string error_message "nullable"
+        datetime started_at
+        datetime completed_at
+    }
+```
+
+### Key design decisions:
+- **Variant** stores size/color/stock at the most granular level (e.g., "Size 9, Black, In Stock")
+- **ScrapeJob** tracks every scrape run for history and debugging
+- Products are **upserted** (update if URL matches, insert if new) so data stays current without duplicates
+
+---
+
+## Scraper Architecture
+
+### Base Scraper (Abstract Class)
+
+Every brand scraper inherits from `BaseScraper` which provides:
+
+```python
+class BaseScraper(ABC):
+    """Shared logic for all brand scrapers"""
+    
+    # Anti-detection built in
+    async def _get_page()        # Launch Playwright with stealth settings
+    async def _random_delay()    # Random 2-5 second delays between actions
+    async def _rotate_ua()       # Rotate User-Agent per request
+    async def _apply_proxy()     # Apply proxy if configured
+    
+    # Template method pattern
+    @abstractmethod
+    async def get_product_links() -> list[str]    # Brand-specific: find all product URLs
+    
+    @abstractmethod
+    async def parse_product(url) -> Product       # Brand-specific: extract product data
+    
+    async def scrape() -> list[Product]            # Shared: orchestrate full scrape
+```
+
+### Anti-Detection Strategy
+
+| Technique | Implementation |
+|-----------|---------------|
+| **Random Delays** | 2-5 seconds between page loads, randomized |
+| **User-Agent Rotation** | Pool of 20+ real browser UAs, rotated per session |
+| **Stealth Mode** | `playwright-stealth` plugin to mask automation markers |
+| **Rate Limiting** | Max 10 requests/minute per domain (configurable) |
+| **Proxy Support** | Optional proxy rotation via config (ready for when you get proxies) |
+| **Human-like Behavior** | Random viewport sizes, mouse movements, scroll patterns |
+
+### Scraping Flow per Brand
+
+```
+1. Launch headless browser with stealth settings
+2. Navigate to brand's product listing page(s)
+3. Paginate / scroll to load all products
+4. Collect all product URLs
+5. For each product URL (with delays):
+   a. Navigate to product page
+   b. Extract: name, price, image, description, category
+   c. Extract variants: sizes, colors, stock status
+   d. Build Product + Variant objects
+6. Upsert all data into SQLite
+7. Update ScrapeJob status
+```
+
+---
+
+## API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/brands` | List all configured brands with last scrape info |
+| `POST` | `/api/scrape/{brand_slug}` | Start scraping a specific brand |
+| `POST` | `/api/scrape/all` | Start scraping all brands |
+| `GET` | `/api/scrape/status/{job_id}` | Check scrape job status |
+| `GET` | `/api/scrape/history` | Scrape job history |
+| `GET` | `/api/products` | List products (filterable by brand, category, stock status) |
+| `GET` | `/api/products/{id}` | Get product with all variants |
+| `GET` | `/api/export` | Export data as CSV or Excel (query param: `format=csv\|xlsx`) |
+| `GET` | `/api/stats` | Dashboard stats (total products, brands, stock summary) |
+
+The FastAPI backend also serves the frontend static files from `/`.
+
+---
+
+## Frontend Dashboard Design
+
+### Dark theme, polished luxury feel — 3 main views:
+
+**1. Dashboard Home**
+- Top stats bar: Total Products | Brands Active | Items In Stock | Last Scrape Time
+- Brand cards grid — each card shows: brand logo/name, product count, last scrape time, "Scrape Now" button with loading spinner
+- "Scrape All" master button
+
+**2. Products View**
+- Filterable data table: Brand, Product Name, Category, Price, Colors, Sizes, Stock Status
+- Search bar with live filtering
+- Color chips showing available colors
+- Stock badges (green = in stock, red = out of stock)
+- Click row to expand and see all variant details
+- Export button (CSV / Excel dropdown)
+
+**3. Scrape History**
+- Timeline of past scrape jobs with status, duration, products scraped
+- Error details for failed scrapes
+
+### Design Tokens
+- **Background**: `#0a0a0f` (near black) with `#12121a` cards
+- **Accent**: `#7c5cfc` (purple) + `#00d4aa` (teal) gradient
+- **Typography**: Inter (Google Fonts)
+- **Border radius**: 12px for cards, 8px for buttons
+- **Glass morphism**: Subtle backdrop-blur on cards
+
+---
+
+## Implementation Order
+
+We will build in this order to always have something testable:
+
+1. **Backend skeleton** — FastAPI app, config, database models, migrations
+2. **Anti-detection utilities** — UA rotation, delays, proxy support
+3. **Base scraper** — Abstract class with shared logic
+4. **First 2 scrapers** — On Running + Hourglass (one shoes, one cosmetics — to validate the architecture works across categories)
+5. **API endpoints** — All REST endpoints
+6. **Frontend dashboard** — Full UI with all 3 views
+7. **Remaining 4 scrapers** — Hoka, Acne Studios, Maison Margiela, Drunk Elephant
+8. **Export feature** — CSV/Excel export
+9. **Polish** — Error handling, loading states, edge cases
+
+---
+
+## Verification Plan
+
+### Automated Testing
+
+1. **Backend API tests** — After building the API layer, run:
+   ```bash
+   cd c:\Users\Sud\Desktop\InventoryScraper
+   python -m pytest backend/tests/ -v
+   ```
+   Tests will cover: database CRUD, API endpoint responses, export format validation.
+
+2. **Scraper smoke tests** — Test each scraper against live sites:
+   ```bash
+   python -m pytest backend/tests/test_scrapers.py -v --timeout=120
+   ```
+   Each test scrapes a single product page and validates the extracted data structure.
+
+### Manual Verification (Browser-based)
+
+1. **Start the server** (`python backend/main.py`) and open `http://localhost:8000`
+2. **Dashboard loads** — Verify all 6 brand cards appear with correct names/logos
+3. **Trigger scrape** — Click "Scrape Now" on On Running, verify:
+   - Loading spinner appears
+   - Products populate the table after completion
+   - Each product shows name, price, colors, sizes, stock status
+4. **Filters work** — Filter by brand, search by product name, filter by stock status
+5. **Export works** — Click Export CSV, open the file, verify data matches the dashboard
+6. **Scrape history** — View scrape history, verify completed job appears with correct stats
+
+> [!NOTE]
+> Since scraping live websites is inherently flaky (sites change layouts, rate limits kick in), the first run of each scraper may need adjustments. We'll build and test iteratively — 2 scrapers first, then the remaining 4.
+
+---
+
+## User Review Required
+
+> [!IMPORTANT]
+> **6 websites, not 4**: You mentioned 4 websites initially but shared 6 links. I've included all 6 in the plan. Please confirm this is correct.
+
+> [!WARNING]
+> **Scraping limitations**: Luxury brand sites frequently change their HTML structure and have aggressive bot detection. Scrapers will need periodic maintenance when sites update. The architecture is designed to make updating individual scrapers easy without affecting others.
