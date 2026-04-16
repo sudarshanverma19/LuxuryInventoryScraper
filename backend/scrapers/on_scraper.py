@@ -147,17 +147,26 @@ class OnScraper(BaseScraper):
                         continue
 
                 # Scroll to trigger lazy loading — human-like with pauses
-                for i in range(15):
-                    scroll_amount = 500 + (i * 50)
-                    await page.evaluate(f"window.scrollBy(0, {scroll_amount})")
+                prev_height = 0
+                stale_rounds = 0
+                while True:
+                    await page.evaluate("window.scrollBy(0, 800)")
                     await short_delay()
-                    # Pause every few scrolls to look human
-                    if i % 4 == 3:
-                        try:
-                            await human_mouse_move(page)
-                        except Exception:
-                            pass
-                        await random_delay(1.0, 2.5)
+                    
+                    try:
+                        await human_mouse_move(page)
+                    except Exception:
+                        pass
+                    await random_delay(0.5, 1.5)
+                        
+                    curr_height = await page.evaluate("document.body.scrollHeight")
+                    if curr_height == prev_height:
+                        stale_rounds += 1
+                        if stale_rounds >= 3:
+                            break
+                    else:
+                        stale_rounds = 0
+                    prev_height = curr_height
 
                 # Collect all product links
                 anchors = await page.query_selector_all('a[href*="/en-us/products/"]')
@@ -180,7 +189,7 @@ class OnScraper(BaseScraper):
 
         deduped = self._deduplicate_by_slug(list(links))
         logger.info(f"[On Running] {len(links)} links → {len(deduped)} after dedup")
-        return deduped[:100]
+        return deduped
 
     def _deduplicate_by_slug(self, links: list[str]) -> list[str]:
         """Keep one color variant per product slug."""

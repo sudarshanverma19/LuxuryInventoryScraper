@@ -155,10 +155,21 @@ class MargielaScraper(BaseScraper):
                 # Brief extra wait for product grid to render after consent
                 await page.wait_for_timeout(2000)
 
-                # Scroll to trigger lazy loading
-                for _ in range(10):
+                # Scroll to trigger lazy loading — dynamic until page bottom
+                prev_height = 0
+                stale_rounds = 0
+                while True:
                     await page.evaluate("window.scrollBy(0, 800)")
                     await short_delay()
+
+                    curr_height = await page.evaluate("document.body.scrollHeight")
+                    if curr_height == prev_height:
+                        stale_rounds += 1
+                        if stale_rounds >= 3:
+                            break
+                    else:
+                        stale_rounds = 0
+                    prev_height = curr_height
 
                 # Product URLs confirmed pattern: /wx/{slug}-{SKU}.html
                 # The SKU portion is all-uppercase alphanumeric, 8+ chars
@@ -182,7 +193,7 @@ class MargielaScraper(BaseScraper):
         finally:
             await page.close()
 
-        result = list(links)[:100]
+        result = list(links)
         logger.info(f"[Margiela] Collected {len(result)} product links")
         return result
 

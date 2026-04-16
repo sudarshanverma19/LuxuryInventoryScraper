@@ -201,10 +201,21 @@ class AcneScraper(BaseScraper):
                 # Dismiss popups on first page load
                 await self._dismiss_popups(page)
 
-                # Scroll to trigger lazy loading
-                for _ in range(15):
-                    await page.evaluate("window.scrollBy(0, 600)")
+                # Scroll to trigger lazy loading completely
+                prev_height = 0
+                stale_rounds = 0
+                while True:
+                    await page.evaluate("window.scrollBy(0, 800)")
                     await short_delay()
+                    
+                    curr_height = await page.evaluate("document.body.scrollHeight")
+                    if curr_height == prev_height:
+                        stale_rounds += 1
+                        if stale_rounds >= 3:
+                            break
+                    else:
+                        stale_rounds = 0
+                    prev_height = curr_height
 
                 # Collect product links
                 # Pattern: /us/en/{slug}/{SKU}.html where SKU = e.g. C90219-863
@@ -239,7 +250,7 @@ class AcneScraper(BaseScraper):
         finally:
             await page.close()
 
-        result = list(links)[:100]
+        result = list(links)
         logger.info(f"[Acne Studios] Collected {len(result)} product links")
         return result
 

@@ -98,4 +98,46 @@ BRANDS = [
         "base_url": "https://www.drunkelephant.com/",
         "category": "Skincare",
     },
+    {
+        "name": "TCG Republic",
+        "slug": "tcg-republic",
+        "base_url": "https://tcgrepublic.in/",
+        "category": "Pokemon TCG",
+    },
+    {
+        "name": "Magikart",
+        "slug": "magikart",
+        "base_url": "https://magikart.in/",
+        "category": "Pokemon TCG",
+    },
+    {
+        "name": "Bored Game Company",
+        "slug": "bored-game-company",
+        "base_url": "https://boredgamecompany.com/in/en/",
+        "category": "Board Games",
+    },
+    {
+        "name": "HypeFly",
+        "slug": "hypefly",
+        "base_url": "https://hypefly.co.in/",
+        "category": "Sneakers/Streetwear",
+    },
+    {
+        "name": "Hype Elixir",
+        "slug": "hype-elixir",
+        "base_url": "https://www.hypeelixir.com/",
+        "category": "Sneakers/Streetwear",
+    },
+    {
+        "name": "CrepDog Crew",
+        "slug": "crepdog-crew",
+        "base_url": "https://crepdogcrew.com/",
+        "category": "Sneakers/Streetwear",
+    },
+    {
+        "name": "Hustle Culture",
+        "slug": "hustle-culture",
+        "base_url": "https://hustleculture.co.in/",
+        "category": "Sneakers/Streetwear",
+    },
 ]

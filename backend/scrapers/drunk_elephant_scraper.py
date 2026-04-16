@@ -191,7 +191,7 @@ class DrunkElephantScraper(BaseScraper):
                 prev_count = 0
                 stale_rounds = 0
 
-                for scroll_round in range(25):
+                while True:
                     await page.evaluate(
                         "window.scrollBy({top: 400, behavior: 'smooth'})"
                     )

@@ -1,14 +1,16 @@
 """
 Hourglass Cosmetics (hourglasscosmetics.com) scraper.
-Scrapes cosmetics products.
+Scrapes Cosmetics products from a Shopify store using the native JSON API.
+This bypasses browser rendering entirely for maximum speed and stability.
 """
 
 import re
+import aiohttp
+import asyncio
 import logging
 from typing import Optional
 
-from scrapers.base_scraper import BaseScraper, ScrapedProduct, ScrapedVariant
-from utils.anti_detect import random_delay, human_scroll, short_delay
+from scrapers.base_scraper import BaseScraper, ScrapedProduct, ScrapedVariant, HealthCheckResult
 
 logger = logging.getLogger(__name__)
 
@@ -17,195 +19,130 @@ class HourglassScraper(BaseScraper):
     BRAND_SLUG = "hourglass"
     BRAND_NAME = "Hourglass Cosmetics"
     BASE_URL = "https://www.hourglasscosmetics.com/"
+    PRODUCTS_API_URL = "https://www.hourglasscosmetics.com/products.json"
 
-    PRODUCT_LISTING_URLS = [
-        "https://www.hourglasscosmetics.com/collections/makeup",
-        "https://www.hourglasscosmetics.com/collections/equilibrium-skincare",
-        "https://www.hourglasscosmetics.com/collections/brushes",
-    ]
+    HEALTH_SELECTORS = {}
 
-    HEALTH_SELECTORS = {
-        "product_card": "a[href*='/products/']",
-        "product_name": "h1",
-        "price": ".price",
-    }
+    async def scrape(self) -> tuple[list[ScrapedProduct], HealthCheckResult]:
+        """
+        Main entry point overriden to use Shopify JSON API directly instead of Playwright.
+        """
+        health = HealthCheckResult()
+        products = []
 
-    async def _start_browser(self):
-        """Override to skip stealth plugin — causes blank pages on Hourglass."""
-        from playwright.async_api import async_playwright
-        self._playwright = await async_playwright().start()
-        self._browser = await self._playwright.chromium.launch(
-            headless=False,  # set True when confirmed working
-            args=["--no-sandbox", "--disable-setuid-sandbox"],
-        )
-        self._context = await self._browser.new_context(
-            viewport={"width": 1280, "height": 800},
-            user_agent=(
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/122.0.0.0 Safari/537.36"
-            ),
-        )
-
-    async def _new_page(self):
-        """Override to skip stealth_async — causes blank pages on Hourglass."""
-        page = await self._context.new_page()
-        return page
-
-    async def get_product_links(self) -> list[str]:
-        """Collect product URLs from collection pages."""
-        links = set()
-        page = await self._new_page()
+        logger.info(f"[{self.BRAND_NAME}] Starting scrape using JSON API...")
 
         try:
-            for listing_url in self.PRODUCT_LISTING_URLS:
-                success = await self._navigate_with_retry(page, listing_url)
-                if not success:
-                    continue
-
-                await page.wait_for_load_state("domcontentloaded", timeout=15000)
-                await human_scroll(page, scroll_count=5)
-                await short_delay()
-
-                anchors = await page.query_selector_all('a[href*="/products/"]')
-                for a in anchors:
-                    href = await a.get_attribute("href")
-                    if href and "/products/" in href:
-                        slug = href.split("/products/")[-1].split("?")[0]
-                        full_url = f"https://www.hourglasscosmetics.com/products/{slug}"
-                        links.add(full_url)
-
-                await random_delay()
+            async with aiohttp.ClientSession() as session:
+                page_num = 1
+                while True:
+                    url = f"{self.PRODUCTS_API_URL}?limit=250&page={page_num}"
+                    logger.info(f"[{self.BRAND_NAME}] Fetching page {page_num}...")
+                    
+                    async with session.get(url, headers={'User-Agent': 'curl/7.68.0'}) as response:
+                        if response.status != 200:
+                            logger.error(f"[{self.BRAND_NAME}] API returned {response.status}")
+                            health.add_issue("api_error", f"API returned {response.status} on page {page_num}", "critical")
+                            break
+                            
+                        data = await response.json()
+                        page_products = data.get("products", [])
+                        
+                        if not page_products:
+                            break
+                            
+                        for item in page_products:
+                            product_url = f"{self.BASE_URL}products/{item['handle']}"
+                            parsed = self._parse_shopify_json(item, product_url)
+                            products.append(parsed)
+                            
+                        if len(page_products) < 250:
+                            # Reached the last page
+                            break
+                            
+                        page_num += 1
+                        await asyncio.sleep(0.5)
+                        
+            # Run health checks logic normally
+            health = await self._run_health_checks(products, len(products))
 
         except Exception as e:
-            logger.error(f"[Hourglass] Error collecting links: {e}")
-        finally:
-            await page.close()
+            logger.error(f"[{self.BRAND_NAME}] Scrape failed: {e}")
+            health.add_issue("exception", f"Scrape failed with error: {str(e)}", "critical")
 
-        return list(links)[:100]
+        logger.info(f"[{self.BRAND_NAME}] Scrape complete: {len(products)} products")
+        return products, health
+
+    # ── Abstract Methods implementation to satisfy BaseScraper ─────────
+    
+    async def get_product_links(self) -> list[str]:
+        return []
 
     async def parse_product(self, url: str) -> Optional[ScrapedProduct]:
-        """Parse a single product page."""
-        page = await self._new_page()
+        return None
 
-        try:
-            success = await self._navigate_with_retry(page, url)
-            if not success:
-                return None
+    # ── Parsing Logic ──────────────────────────────────────────────────
+    
+    def _parse_shopify_json(self, data: dict, url: str) -> ScrapedProduct:
+        """Parse Shopify product JSON into ScrapedProduct."""
+        name = data.get("title", "")
+        description = data.get("body_html", "")
+        # Strip HTML from description
+        if description:
+            description = re.sub(r'<[^>]+>', ' ', description).strip()
+            description = re.sub(r'\s+', ' ', description)[:500]
 
-            await page.wait_for_load_state("domcontentloaded", timeout=15000)
+        # Image
+        image_url = None
+        images = data.get("images", [])
+        if images:
+            src = images[0].get("src", "")
+            image_url = src if src.startswith("http") else f"https:{src}" if src else None
 
-            # Wait for product form to render before scraping variants
-            try:
-                await page.wait_for_selector(
-                    '[class*="ProductForm__optionSwatchListAction"], [class*="ProductDetails-title"]',
-                    timeout=8000
-                )
-            except Exception:
-                pass  # continue anyway, may be a single-variant product
+        # Category
+        category = "Cosmetics"
+        product_type = data.get("product_type", "")
+        if product_type:
+            category = product_type
 
-            await short_delay()
-
-            # Product name — confirmed selector
-            name = await self._get_text(page, '[class*="ProductDetails-title"], h1')
-            if not name:
-                return None
-            name = name.strip()
-
-            # Price — confirmed working
+        # Variants
+        variants = []
+        for v in data.get("variants", []):
             price = None
-            price_text = await self._get_text(page, '[class*="ProductDetails-price"], .price')
-            if price_text:
-                price_match = re.search(r'[\d,]+\.?\d*', price_text.replace(",", ""))
-                if price_match:
-                    price = float(price_match.group())
+            price_str = v.get("price", "")
+            if price_str:
+                try:
+                    price = float(price_str)
+                except (ValueError, TypeError):
+                    pass
 
-            # Image — confirmed pattern
-            image_url = await self._get_attribute(
-                page,
-                '[class*="ProductGallery"] img, picture img',
-                "src"
-            )
-            if image_url and image_url.startswith("//"):
-                image_url = "https:" + image_url
+            variants.append(ScrapedVariant(
+                size=v.get("title", "Default Title"),
+                in_stock=v.get("available", False),
+                quantity=v.get("inventory_quantity"),
+                sku=v.get("sku"),
+            ))
 
-            # Description — confirmed selector gives clean product description
-            description = await self._get_text(
-                page,
-                '[class*="ProductDetails-description"]'
-            )
+        # Use first variant price as product price
+        price = None
+        if variants and data.get("variants"):
+            price_str = data["variants"][0].get("price", "")
+            if price_str:
+                try:
+                    price = float(price_str)
+                except (ValueError, TypeError):
+                    pass
 
-            # Variants — shade swatch buttons
-            variants = []
-            shade_buttons = await page.query_selector_all(
-                '[class*="ProductForm__optionSwatchListAction"]'
-            )
+        if not variants:
+            variants.append(ScrapedVariant(in_stock=True))
 
-            seen_shades = set()
-            for el in shade_buttons:
-                class_name = await el.get_attribute("class") or ""
-                # Skip child Hex dot and HexText label elements
-                if "Hex" in class_name:
-                    continue
-
-                shade_name = (await el.inner_text()).strip()
-                if not shade_name or shade_name in seen_shades:
-                    continue
-                seen_shades.add(shade_name)
-
-                # Sold-out = disabled attribute or soldout in class name
-                is_disabled = await el.get_attribute("disabled")
-                in_stock = (
-                    is_disabled is None
-                    and "soldout" not in class_name.lower()
-                    and "sold-out" not in class_name.lower()
-                )
-
-                variants.append(ScrapedVariant(
-                    color=shade_name,
-                    in_stock=in_stock,
-                ))
-
-            # Fallback — size variants (e.g. brushes with no shades)
-            if not variants:
-                size_elements = await page.query_selector_all(
-                    "select[name='id'] option, .variant-selector option"
-                )
-                if size_elements:
-                    for el in size_elements:
-                        text = await el.text_content()
-                        if text and text.strip():
-                            text = text.strip()
-                            in_stock = "sold out" not in text.lower()
-                            variants.append(ScrapedVariant(
-                                size=text.replace(" - Sold Out", "").strip(),
-                                in_stock=in_stock,
-                            ))
-                else:
-                    # Single variant fallback (e.g. brushes, single-sku products)
-                    add_to_cart = await page.query_selector(
-                        '[class*="addToCartButton"], [data-add-to-cart], button[type="submit"]'
-                    )
-                    in_stock = True
-                    if add_to_cart:
-                        btn_text = await add_to_cart.text_content() or ""
-                        is_disabled = await add_to_cart.get_attribute("disabled")
-                        if is_disabled is not None or "sold out" in btn_text.lower():
-                            in_stock = False
-                    variants.append(ScrapedVariant(in_stock=in_stock))
-
-            return ScrapedProduct(
-                name=name,
-                url=url,
-                price=price,
-                image_url=image_url,
-                category="Cosmetics",
-                description=description,
-                variants=variants,
-            )
-
-        except Exception as e:
-            logger.error(f"[Hourglass] Error parsing {url}: {e}")
-            return None
-        finally:
-            await page.close()
+        return ScrapedProduct(
+            name=name,
+            url=url,
+            price=price,
+            currency="USD",
+            image_url=image_url,
+            category=category,
+            description=description,
+            variants=variants,
+        )

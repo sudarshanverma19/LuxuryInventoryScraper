@@ -77,6 +77,13 @@ def _get_scraper(brand_slug: str):
     from scrapers.margiela_scraper import MargielaScraper
     from scrapers.hourglass_scraper import HourglassScraper
     from scrapers.drunk_elephant_scraper import DrunkElephantScraper
+    from scrapers.tcg_republic_scraper import TCGRepublicScraper
+    from scrapers.magikart_scraper import MagikartScraper
+    from scrapers.boredgame_scraper import BoredGameScraper
+    from scrapers.hypefly_scraper import HypeFlyScraper
+    from scrapers.hypeelixir_scraper import HypeElixirScraper
+    from scrapers.crepdogcrew_scraper import CrepDogCrewScraper
+    from scrapers.hustleculture_scraper import HustleCultureScraper
 
     scrapers = {
         "on-running": OnScraper,
@@ -85,6 +92,13 @@ def _get_scraper(brand_slug: str):
         "maison-margiela": MargielaScraper,
         "hourglass": HourglassScraper,
         "drunk-elephant": DrunkElephantScraper,
+        "tcg-republic": TCGRepublicScraper,
+        "magikart": MagikartScraper,
+        "bored-game-company": BoredGameScraper,
+        "hypefly": HypeFlyScraper,
+        "hype-elixir": HypeElixirScraper,
+        "crepdog-crew": CrepDogCrewScraper,
+        "hustle-culture": HustleCultureScraper,
     }
 
     scraper_class = scrapers.get(brand_slug)
