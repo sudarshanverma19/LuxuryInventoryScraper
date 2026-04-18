@@ -84,6 +84,7 @@ def _get_scraper(brand_slug: str):
     from scrapers.hypeelixir_scraper import HypeElixirScraper
     from scrapers.crepdogcrew_scraper import CrepDogCrewScraper
     from scrapers.hustleculture_scraper import HustleCultureScraper
+    from scrapers.anta_scraper import AntaScraper
 
     scrapers = {
         "on-running": OnScraper,
@@ -99,6 +100,7 @@ def _get_scraper(brand_slug: str):
         "hype-elixir": HypeElixirScraper,
         "crepdog-crew": CrepDogCrewScraper,
         "hustle-culture": HustleCultureScraper,
+        "anta": AntaScraper,
     }
 
     scraper_class = scrapers.get(brand_slug)

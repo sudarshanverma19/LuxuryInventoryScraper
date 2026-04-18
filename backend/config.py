@@ -140,4 +140,10 @@ BRANDS = [
         "base_url": "https://hustleculture.co.in/",
         "category": "Sneakers/Streetwear",
     },
+    {
+        "name": "ANTA",
+        "slug": "anta",
+        "base_url": "https://anta.com/",
+        "category": "Shoes/Apparel",
+    },
 ]
