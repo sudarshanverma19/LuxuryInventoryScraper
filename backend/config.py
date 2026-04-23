@@ -146,4 +146,52 @@ BRANDS = [
         "base_url": "https://anta.com/",
         "category": "Shoes/Apparel",
     },
+    {
+        "name": "Hex Beauty Lab",
+        "slug": "hex-beauty-lab",
+        "base_url": "https://hexbeautylab.com/",
+        "category": "Skincare",
+    },
+    {
+        "name": "Fenty Beauty",
+        "slug": "fenty-beauty",
+        "base_url": "https://fentybeauty.com/",
+        "category": "Cosmetics",
+    },
+    {
+        "name": "Gymshark",
+        "slug": "gymshark",
+        "base_url": "https://row.gymshark.com/",
+        "category": "Activewear",
+    },
+    {
+        "name": "Skims",
+        "slug": "skims",
+        "base_url": "https://skims.com/en-in/",
+        "category": "Apparel/Underwear",
+    },
+    {
+        "name": "YoungLA",
+        "slug": "youngla",
+        "base_url": "https://www.youngla.com/",
+        "category": "Activewear",
+    },
+    {
+        "name": "Alo Yoga",
+        "slug": "alo-yoga",
+        "base_url": "https://www.aloyoga.com/en-in/",
+        "category": "Activewear",
+    },
+    {
+        "name": "Represent Clo",
+        "slug": "represent-clo",
+        "base_url": "https://row.representclo.com/",
+        "category": "Streetwear/Fashion",
+    },
+    {
+        "name": "Brooks Running India",
+        "slug": "brooks-running",
+        "base_url": "https://brooksrunningindia.com/",
+        "category": "Running Shoes",
+    },
 ]

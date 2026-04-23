@@ -85,6 +85,14 @@ def _get_scraper(brand_slug: str):
     from scrapers.crepdogcrew_scraper import CrepDogCrewScraper
     from scrapers.hustleculture_scraper import HustleCultureScraper
     from scrapers.anta_scraper import AntaScraper
+    from scrapers.hexbeautylab_scraper import HexBeautyLabScraper
+    from scrapers.fentybeauty_scraper import FentyBeautyScraper
+    from scrapers.gymshark_scraper import GymsharkScraper
+    from scrapers.skims_scraper import SkimsScraper
+    from scrapers.youngla_scraper import YoungLAScraper
+    from scrapers.aloyoga_scraper import AloYogaScraper
+    from scrapers.representclo_scraper import RepresentCloScraper
+    from scrapers.brooksrunning_scraper import BrooksRunningScraper
 
     scrapers = {
         "on-running": OnScraper,
@@ -101,6 +109,14 @@ def _get_scraper(brand_slug: str):
         "crepdog-crew": CrepDogCrewScraper,
         "hustle-culture": HustleCultureScraper,
         "anta": AntaScraper,
+        "hex-beauty-lab": HexBeautyLabScraper,
+        "fenty-beauty": FentyBeautyScraper,
+        "gymshark": GymsharkScraper,
+        "skims": SkimsScraper,
+        "youngla": YoungLAScraper,
+        "alo-yoga": AloYogaScraper,
+        "represent-clo": RepresentCloScraper,
+        "brooks-running": BrooksRunningScraper,
     }
 
     scraper_class = scrapers.get(brand_slug)

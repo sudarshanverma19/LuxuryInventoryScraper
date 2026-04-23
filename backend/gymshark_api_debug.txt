@@ -1,0 +1,15 @@
+﻿python :   File "<string>", line 1
+At line:1 char:1
++ python -c "import requests, json; r = requests.get('https://row.gymsh ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (  File "<string>", line 1:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+    import requests, json; r = 
+requests.get('https://row.gymshark.com/products/gymshark-running-short-6-shorts-black-aw25', headers={'User-Agent': 
+'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'}); 
+html = r.text; import re; m = re.search(r'<script id=" __NEXT_DATA__\
+                                                                                                                       
+                                                                                                                       
+                                                                  ^
+SyntaxError: unterminated string literal (detected at line 1)

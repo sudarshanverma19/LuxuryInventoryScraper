@@ -1,0 +1,170 @@
+{
+  "@context": "https://schema.org",
+  "@type": "ProductGroup",
+  "brand": {
+    "@type": "Brand",
+    "name": "SKIMS"
+  },
+  "description": "Stay cool with the COTTON RIB LONG SLEEVE T-SHIRT in MARBLE. A must-have long sleeve top for casual days. Shop now and refresh your wardrobe basics!",
+  "image": [
+    "https://cdn.shopify.com/s/files/1/0259/5448/4284/files/SKIMS-LOUNGEWEAR-TP-LST-4689-MBL.jpg?v=1736531592"
+  ],
+  "name": "COTTON RIB LONG SLEEVE T-SHIRT | MARBLE",
+  "productGroupID": "TP-LST-4689",
+  "variesBy": [
+    "https://schema.org/size"
+  ],
+  "hasVariant": [
+    {
+      "@type": "Product",
+      "@id": "https://skims.com/products/cotton-rib-long-sleeve-t-shirt-marble#variant-XXS",
+      "name": "COTTON RIB LONG SLEEVE T-SHIRT | MARBLE | XXS",
+      "gtin": "198310519180",
+      "mpn": "TP-LST-4689-MBL-XXS",
+      "size": "XXS",
+      "image": "https://cdn.shopify.com/s/files/1/0259/5448/4284/files/SKIMS-LOUNGEWEAR-TP-LST-4689-MBL.jpg?v=1736531592",
+      "offers": {
+        "@type": "Offer",
+        "availability": "https://schema.org/InStock",
+        "price": 5700,
+        "priceCurrency": "INR",
+        "url": "https://skims.com/products/cotton-rib-long-sleeve-t-shirt-marble?variant=47894707568993"
+      }
+    },
+    {
+      "@type": "Product",
+      "@id": "https://skims.com/products/cotton-rib-long-sleeve-t-shirt-marble#variant-XS",
+      "name": "COTTON RIB LONG SLEEVE T-SHIRT | MARBLE | XS",
+      "gtin": "198310519173",
+      "mpn": "TP-LST-4689-MBL-XS",
+      "size": "XS",
+      "image": "https://cdn.shopify.com/s/files/1/0259/5448/4284/files/SKIMS-LOUNGEWEAR-TP-LST-4689-MBL.jpg?v=1736531592",
+      "offers": {
+        "@type": "Offer",
+        "availability": "https://schema.org/InStock",
+        "price": 5700,
+        "priceCurrency": "INR",
+        "url": "https://skims.com/products/cotton-rib-long-sleeve-t-shirt-marble?variant=47894707601761"
+      }
+    },
+    {
+      "@type": "Product",
+      "@id": "https://skims.com/products/cotton-rib-long-sleeve-t-shirt-marble#variant-S",
+      "name": "COTTON RIB LONG SLEEVE T-SHIRT | MARBLE | S",
+      "gtin": "198310519166",
+      "mpn": "TP-LST-4689-MBL-S",
+      "size": "S",
+      "image": "https://cdn.shopify.com/s/files/1/0259/5448/4284/files/SKIMS-LOUNGEWEAR-TP-LST-4689-MBL.jpg?v=1736531592",
+      "offers": {
+        "@type": "Offer",
+        "availability": "https://schema.org/OutOfStock",
+        "price": 5700,
+        "priceCurrency": "INR",
+        "url": "https://skims.com/products/cotton-rib-long-sleeve-t-shirt-marble?variant=47894707634529"
+      }
+    },
+    {
+      "@type": "Product",
+      "@id": "https://skims.com/products/cotton-rib-long-sleeve-t-shirt-marble#variant-M",
+      "name": "COTTON RIB LONG SLEEVE T-SHIRT | MARBLE | M",
+      "gtin": "198310519142",
+      "mpn": "TP-LST-4689-MBL-M",
+      "size": "M",
+      "image": "https://cdn.shopify.com/s/files/1/0259/5448/4284/files/SKIMS-LOUNGEWEAR-TP-LST-4689-MBL.jpg?v=1736531592",
+      "offers": {
+        "@type": "Offer",
+        "availability": "https://schema.org/OutOfStock",
+        "price": 5700,
+        "priceCurrency": "INR",
+        "url": "https://skims.com/products/cotton-rib-long-sleeve-t-shirt-marble?variant=47894707667297"
+      }
+    },
+    {
+      "@type": "Product",
+      "@id": "https://skims.com/products/cotton-rib-long-sleeve-t-shirt-marble#variant-L",
+      "name": "COTTON RIB LONG SLEEVE T-SHIRT | MARBLE | L",
+      "gtin": "198310519128",
+      "mpn": "TP-LST-4689-MBL-L",
+      "size": "L",
+      "image": "https://cdn.shopify.com/s/files/1/0259/5448/4284/files/SKIMS-LOUNGEWEAR-TP-LST-4689-MBL.jpg?v=1736531592",
+      "offers": {
+        "@type": "Offer",
+        "availability": "https://schema.org/OutOfStock",
+        "price": 5700,
+        "priceCurrency": "INR",
+        "url": "https://skims.com/products/cotton-rib-long-sleeve-t-shirt-marble?variant=47894707700065"
+      }
+    },
+    {
+      "@type": "Product",
+      "@id": "https://skims.com/products/cotton-rib-long-sleeve-t-shirt-marble#variant-XL",
+      "name": "COTTON RIB LONG SLEEVE T-SHIRT | MARBLE | XL",
+      "gtin": "198310519111",
+      "mpn": "TP-LST-4689-MBL-XL",
+      "size": "XL",
+      "image": "https://cdn.shopify.com/s/files/1/0259/5448/4284/files/SKIMS-LOUNGEWEAR-TP-LST-4689-MBL.jpg?v=1736531592",
+      "offers": {
+        "@type": "Offer",
+        "availability": "https://schema.org/InStock",
+        "price": 5700,
+        "priceCurrency": "INR",
+        "url": "https://skims.com/products/cotton-rib-long-sleeve-t-shirt-marble?variant=47894707732833"
+      }
+    },
+    {
+      "@type": "Product",
+      "@id": "https://skims.com/products/cotton-rib-long-sleeve-t-shirt-marble#variant-2X",
+      "name": "COTTON RIB LONG SLEEVE T-SHIRT | MARBLE | 2X",
+      "gtin": "198310519104",
+      "mpn": "TP-LST-4689-MBL-2X",
+      "size": "2X",
+      "image": "https://cdn.shopify.com/s/files/1/0259/5448/4284/files/SKIMS-LOUNGEWEAR-TP-LST-4689-MBL.jpg?v=1736531592",
+      "offers": {
+        "@type": "Offer",
+        "availability": "https://schema.org/OutOfStock",
+        "price": 5700,
+        "priceCurrency": "INR",
+        "url": "https://skims.com/products/cotton-rib-long-sleeve-t-shirt-marble?variant=47894707765601"
+      }
+    },
+    {
+      "@type": "Product",
+      "@id": "https://skims.com/products/cotton-rib-long-sleeve-t-shirt-marble#variant-3X",
+      "name": "COTTON RIB LONG SLEEVE T-SHIRT | MARBLE | 3X",
+      "gtin": "198310519074",
+      "mpn": "TP-LST-4689-MBL-3X",
+      "size": "3X",
+      "image": "https://cdn.shopify.com/s/files/1/0259/5448/4284/files/SKIMS-LOUNGEWEAR-TP-LST-4689-MBL.jpg?v=1736531592",
+      "offers": {
+        "@type": "Offer",
+        "availability": "https://schema.org/InStock",
+        "price": 5700,
+        "priceCurrency": "INR",
+        "url": "https://skims.com/products/cotton-rib-long-sleeve-t-shirt-marble?variant=47894707798369"
+      }
+    },
+    {
+      "@type": "Product",
+      "@id": "https://skims.com/products/cotton-rib-long-sleeve-t-shirt-marble#variant-4X",
+      "name": "COTTON RIB LONG SLEEVE T-SHIRT | MARBLE | 4X",
+      "gtin": "198310519043",
+      "mpn": "TP-LST-4689-MBL-4X",
+      "size": "4X",
+      "image": "https://cdn.shopify.com/s/files/1/0259/5448/4284/files/SKIMS-LOUNGEWEAR-TP-LST-4689-MBL.jpg?v=1736531592",
+      "offers": {
+        "@type": "Offer",
+        "availability": "https://schema.org/InStock",
+        "price": 5700,
+        "priceCurrency": "INR",
+        "url": "https://skims.com/products/cotton-rib-long-sleeve-t-shirt-marble?variant=47894707831137"
+      }
+    }
+  ],
+  "url": "https://skims.com/products/cotton-rib-long-sleeve-t-shirt-marble",
+  "aggregateRating": {
+    "@type": "AggregateRating",
+    "ratingValue": "4.9",
+    "bestRating": "5",
+    "ratingCount": "167"
+  }
+}
