@@ -34,58 +34,54 @@ class FentyBeautyScraper(BaseScraper):
         logger.info(f"[{self.BRAND_NAME}] Starting scrape using JSON API...")
 
         try:
-            headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                              "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-                "Accept": "application/json",
-            }
-            async with aiohttp.ClientSession(headers=headers) as session:
-                page_num = 1
-                while True:
-                    url = f"{self.PRODUCTS_API_URL}?limit=250&page={page_num}"
-                    logger.info(f"[{self.BRAND_NAME}] Fetching page {page_num}...")
+            await self._start_browser()
+            page = await self._new_page()
 
-                    async with session.get(url) as response:
-                        if response.status != 200:
-                            logger.error(f"[{self.BRAND_NAME}] API returned {response.status}")
-                            health.add_issue("api_error", f"API returned {response.status} on page {page_num}", "critical")
+            page_num = 1
+            while True:
+                url = f"{self.PRODUCTS_API_URL}?limit=250&page={page_num}"
+                logger.info(f"[{self.BRAND_NAME}] Fetching page {page_num}...")
+
+                response = await page.goto(url, wait_until="domcontentloaded", timeout=30000)
+                
+                if not response or response.status != 200:
+                    if response and response.status in (429, 403, 503):
+                        logger.warning(f"[{self.BRAND_NAME}] API returned {response.status}")
+                        if response.status == 403:
                             break
+                    
+                try:
+                    data = await response.json()
+                except Exception as e:
+                    logger.error(f"[{self.BRAND_NAME}] Failed to parse JSON on page {page_num}: {e}")
+                    health.add_issue("api_error", f"Failed to parse JSON on page {page_num}", "critical")
+                    break
 
-                        data = await response.json()
-                        page_products = data.get("products", [])
+                page_products = data.get("products", [])
 
-                        if not page_products:
-                            break
+                if not page_products:
+                    break
 
-                        for item in page_products:
-                            # Skip true GWP/sample items (very low price freebies)
-                            variants = item.get("variants", [])
-                            if variants:
-                                try:
-                                    first_price = float(variants[0].get("price", "0"))
-                                    if first_price < 3.0:
-                                        continue
-                                except (ValueError, TypeError):
-                                    pass
+                for item in page_products:
+                    product_url = f"{self.BASE_URL}products/{item['handle']}"
+                    parsed = self._parse_shopify_json(item, product_url)
+                    products.append(parsed)
 
-                            product_url = f"{self.BASE_URL}products/{item['handle']}"
-                            parsed = self._parse_shopify_json(item, product_url)
-                            products.append(parsed)
+                logger.info(f"[{self.BRAND_NAME}] Page {page_num}: {len(page_products)} products")
 
-                        logger.info(f"[{self.BRAND_NAME}] Page {page_num}: {len(page_products)} raw, "
-                                    f"{len(products)} total (after filtering)")
+                if len(page_products) < 250:
+                    break
 
-                        if len(page_products) < 250:
-                            break
-
-                        page_num += 1
-                        await asyncio.sleep(1.0)  # Slightly longer delay for large catalog
+                page_num += 1
+                await asyncio.sleep(0.5)
 
             health = await self._run_health_checks(products, len(products))
 
         except Exception as e:
             logger.error(f"[{self.BRAND_NAME}] Scrape failed: {e}")
             health.add_issue("exception", f"Scrape failed with error: {str(e)}", "critical")
+        finally:
+            await self._close_browser()
 
         logger.info(f"[{self.BRAND_NAME}] Scrape complete: {len(products)} products")
         return products, health

@@ -1,0 +1,44 @@
+# Comprehensive Scraper Strategy Plan
+
+As requested, I have audited all 21 brands in your system to check if they have accessible APIs or if we must rely on pure HTML scraping. 
+
+Here is the definitive list. For **all** of the ones currently failing, we will transition them to use the **Chromium (Playwright)** engine (exactly as I did for Alo Yoga) so they never get blocked by Cloudflare or Akamai.
+
+## Category 1: Direct JSON API via Chromium (Fastest)
+These websites are built on Shopify or WooCommerce and leave their JSON APIs completely open. However, their security (Cloudflare) blocks standard bots like `aiohttp`. We will use a headless Chromium browser to secretly fetch the raw JSON from these APIs.
+1. **Alo Yoga** (Shopify `products.json`) — *Already fixed*
+2. **ANTA** (Shopify `products.json`)
+3. **Brooks Running India** (Shopify `products.json`)
+4. **CrepDog Crew** (Shopify `products.json`)
+5. **Fenty Beauty** (Shopify `products.json`)
+6. **Hex Beauty Lab** (Shopify `products.json`)
+7. **Hourglass Cosmetics** (Shopify `products.json`)
+8. **Hustle Culture** (Shopify `products.json`)
+9. **Hype Elixir** (Shopify `products.json`)
+10. **HypeFly** (Shopify `products.json`)
+11. **Magikart** (Shopify `products.json`)
+12. **Represent Clo** (Shopify `products.json`)
+13. **YoungLA** (Shopify `products.json`)
+14. **TCG Republic** (WooCommerce `wp-json/wc/store/products`)
+
+## Category 2: Embedded JSON API via Chromium (Fast)
+These websites do not have a public JSON URL, but they inject a massive hidden JSON payload (Next.js data or LD+JSON) directly into the HTML code of their product pages. We will use Chromium to open their sitemap, visit the pages, and extract the hidden JSON data without having to parse complex HTML elements.
+15. **Gymshark** (Extracts `__NEXT_DATA__` JSON from HTML)
+16. **Skims** (Extracts `application/ld+json` structured data from HTML)
+
+## Category 3: Pure HTML Scraping via Chromium (Slowest)
+These websites are custom-built (like Salesforce Commerce Cloud), and their APIs are completely locked down or disabled entirely (returning 404 or 410 Gone errors when tested). For these, we have absolutely no choice but to use Chromium to open the browser, load the page, and manually extract titles, prices, and stock from the visual HTML elements.
+17. **Acne Studios** 
+18. **Maison Margiela** 
+19. **Drunk Elephant** 
+20. **On Running** 
+21. **Hoka** 
+22. **Bored Game Company** 
+
+---
+
+## User Review Required
+
+Does this list align with your expectations? 
+
+If you give me the green light, I will proceed to convert all the broken Category 1 and Category 2 scrapers to use the stealth Chromium engine. I will also make the database limits fully unrestricted as we discussed earlier so no product data can ever crash the saving process.

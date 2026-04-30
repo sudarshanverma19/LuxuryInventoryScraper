@@ -25,6 +25,7 @@
                     </button>
                 </li>
                 <li><button class="nav-link" data-page="history">History</button></li>
+                <li><button class="nav-link" data-page="shopify">Shopify Sync</button></li>
             </ul>
         </nav>
 
@@ -53,9 +54,14 @@
                 <!-- Section Header -->
                 <div class="section-header">
                     <h2 class="section-title">Your Brands</h2>
-                    <button class="btn btn-primary" id="scrape-all-btn" onclick="app.scrapeAll()">
-                        🔍 Scrape All
-                    </button>
+                    <div class="section-header-actions">
+                        <button class="btn btn-danger" id="clear-db-btn" onclick="app.clearDatabase()">
+                            🗑️ Clear Database
+                        </button>
+                        <button class="btn btn-primary" id="scrape-all-btn" onclick="app.scrapeAll()">
+                            🔍 Scrape All
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Brand Cards -->
@@ -178,6 +184,93 @@
                         <div class="empty-state-icon">📋</div>
                         <div class="empty-state-title">No scrape history</div>
                         <div class="empty-state-text">Start scraping brands to see your history here.</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ═══════════════════════════════════════════════════════
+                 PAGE: Shopify Sync
+                 ═══════════════════════════════════════════════════════ -->
+            <section id="page-shopify" class="page-section">
+                <!-- Config Warning -->
+                <div class="shopify-config-warning hidden" id="shopify-config-warning">
+                    <div class="config-warning-icon">⚙️</div>
+                    <div class="config-warning-text">
+                        <strong>Shopify not configured</strong>
+                        <p>Set <code>SHOPIFY_STORE_URL</code> and <code>SHOPIFY_ACCESS_TOKEN</code> in your <code>.env</code> file to enable syncing.</p>
+                    </div>
+                </div>
+
+                <!-- Sync Status Cards -->
+                <div class="shopify-stats-bar" id="shopify-stats-bar">
+                    <!-- Rendered by JS -->
+                </div>
+
+                <!-- Controls -->
+                <div class="section-header">
+                    <h2 class="section-title">Shopify Product Sync</h2>
+                    <div class="shopify-controls">
+                        <select class="filter-select" id="shopify-brand-filter">
+                            <option value="">All Brands</option>
+                        </select>
+                        <select class="filter-select sync-mode-select" id="shopify-sync-mode">
+                            <option value="draft">📝 Draft Mode</option>
+                            <option value="publish">🟢 Publish Mode</option>
+                        </select>
+                        <button class="btn btn-primary" id="shopify-sync-btn" onclick="app.startShopifySync()">
+                            🚀 Start Sync
+                        </button>
+                        <button class="btn btn-secondary" id="shopify-retry-btn" onclick="app.retryFailedShopify()">
+                            🔄 Retry Failed
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Live Progress -->
+                <div class="shopify-progress hidden" id="shopify-progress">
+                    <div class="progress-header">
+                        <span class="progress-title">Sync in progress...</span>
+                        <span class="progress-stats" id="shopify-progress-stats">0 / 0</span>
+                    </div>
+                    <div class="progress-bar-track">
+                        <div class="progress-bar-fill" id="shopify-progress-bar" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <!-- Sync History -->
+                <div class="shopify-history" id="shopify-history">
+                    <h3 class="sub-section-title">Sync History</h3>
+                    <div class="shopify-history-list" id="shopify-history-list">
+                        <div class="empty-state">
+                            <div class="empty-state-icon">🛍️</div>
+                            <div class="empty-state-title">No sync history</div>
+                            <div class="empty-state-text">Start syncing products to Shopify to see your history here.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Log Viewer (Modal-like) -->
+                <div class="shopify-log-viewer hidden" id="shopify-log-viewer">
+                    <div class="log-viewer-header">
+                        <h3 class="sub-section-title">Sync Logs — Job #<span id="log-viewer-job-id"></span></h3>
+                        <button class="btn btn-secondary btn-sm" onclick="app.closeShopifyLogs()">✕ Close</button>
+                    </div>
+                    <div class="log-viewer-summary" id="log-viewer-summary"></div>
+                    <div class="log-viewer-table-wrapper">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Product</th>
+                                    <th>Brand</th>
+                                    <th>Status</th>
+                                    <th>Images</th>
+                                    <th>Shopify ID</th>
+                                    <th>Error</th>
+                                </tr>
+                            </thead>
+                            <tbody id="shopify-logs-tbody">
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </section>

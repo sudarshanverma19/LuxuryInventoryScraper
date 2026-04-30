@@ -58,6 +58,15 @@ PRODUCT_COUNT_ANOMALY_THRESHOLD = float(os.getenv("PRODUCT_COUNT_ANOMALY_THRESHO
 # Data completeness: max percentage of products with missing required fields
 DATA_COMPLETENESS_THRESHOLD = float(os.getenv("DATA_COMPLETENESS_THRESHOLD", "20.0"))
 
+# ── Shopify Sync ──────────────────────────────────────────────────────────
+SHOPIFY_STORE_URL = os.getenv("SHOPIFY_STORE_URL", "")          # e.g. https://your-store.myshopify.com
+SHOPIFY_ACCESS_TOKEN = os.getenv("SHOPIFY_ACCESS_TOKEN", "")    # Admin API access token
+SHOPIFY_API_VERSION = os.getenv("SHOPIFY_API_VERSION", "2025-01")
+SHOPIFY_SYNC_BATCH_SIZE = int(os.getenv("SHOPIFY_SYNC_BATCH_SIZE", "50"))
+SHOPIFY_SYNC_CONCURRENCY = int(os.getenv("SHOPIFY_SYNC_CONCURRENCY", "5"))
+SHOPIFY_SYNC_BATCH_DELAY = float(os.getenv("SHOPIFY_SYNC_BATCH_DELAY", "4.0"))  # seconds between batches
+SHOPIFY_IMAGE_COMPRESSION = os.getenv("SHOPIFY_IMAGE_COMPRESSION", "false").lower() == "true"
+
 # ── Brand Configurations ──────────────────────────────────────────────────
 BRANDS = [
     {

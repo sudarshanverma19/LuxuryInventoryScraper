@@ -50,54 +50,71 @@ class GymsharkScraper(BaseScraper):
     # ── Override scrape() — no browser needed ──────────────────────────
 
     async def scrape(self) -> tuple[list[ScrapedProduct], HealthCheckResult]:
-        """
-        Main entry point. Uses sitemap + HTTP requests instead of Playwright.
-        """
         health = HealthCheckResult()
         products = []
 
-        logger.info(f"[{self.BRAND_NAME}] Starting API-based scrape...")
+        logger.info(f"[{self.BRAND_NAME}] Starting API-based scrape via Playwright...")
 
         try:
-            async with aiohttp.ClientSession(headers=HEADERS) as session:
-                # Step 1: Get product URLs from sitemap
-                product_urls = await self._get_product_urls_from_sitemap(session)
+            await self._start_browser()
+            page = await self._new_page()
 
-                if not product_urls:
-                    health.add_issue("sitemap", "No product URLs found in sitemap", "critical")
-                    return products, health
+            # Step 1: Get product URLs from sitemap
+            logger.info(f"[{self.BRAND_NAME}] Fetching sitemap...")
+            response = await page.goto(self.SITEMAP_URL, wait_until="domcontentloaded", timeout=30000)
+            if not response or response.status != 200:
+                health.add_issue("sitemap", f"Sitemap returned {response.status if response else 'None'}", "critical")
+                return products, health
 
-                logger.info(f"[{self.BRAND_NAME}] Found {len(product_urls)} products in sitemap"
-                            + (f", scraping up to {MAX_PRODUCTS}" if MAX_PRODUCTS else ""))
+            xml_text = await response.text()
+            
+            import xml.etree.ElementTree as ElementTree
+            root = ElementTree.fromstring(xml_text)
+            ns = {"s": "http://www.sitemaps.org/schemas/sitemap/0.9"}
+            product_urls = []
+            for loc in root.findall(".//s:loc", ns):
+                url = loc.text.strip() if loc.text else ""
+                if "/products/" in url and "gift-card" not in url:
+                    product_urls.append(url)
 
-                # Limit if configured
-                if MAX_PRODUCTS:
-                    product_urls = product_urls[:MAX_PRODUCTS]
+            if not product_urls:
+                health.add_issue("sitemap", "No product URLs found in sitemap", "critical")
+                return products, health
 
-                # Step 2: Fetch each product page and extract __NEXT_DATA__
-                semaphore = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
-                tasks = [
-                    self._fetch_product(session, semaphore, url)
-                    for url in product_urls
-                ]
-                results = await asyncio.gather(*tasks, return_exceptions=True)
+            logger.info(f"[{self.BRAND_NAME}] Found {len(product_urls)} products in sitemap")
+            if MAX_PRODUCTS:
+                product_urls = product_urls[:MAX_PRODUCTS]
 
-                for result in results:
-                    if isinstance(result, Exception):
-                        logger.debug(f"[{self.BRAND_NAME}] Product fetch error: {result}")
+            # Step 2: Fetch each product page
+            for i, url in enumerate(product_urls):
+                try:
+                    await asyncio.sleep(0.5)
+                    resp = await page.goto(url, wait_until="domcontentloaded", timeout=20000)
+                    if not resp or resp.status != 200:
                         continue
-                    if result is not None:
-                        products.append(result)
-
-            # Run health checks
+                        
+                    html = await resp.text()
+                    product = self._parse_next_data(html, url)
+                    if product:
+                        products.append(product)
+                        
+                    if (i + 1) % 50 == 0:
+                        logger.info(f"[{self.BRAND_NAME}] Processed {i + 1}/{len(product_urls)} products")
+                except Exception as e:
+                    logger.debug(f"[{self.BRAND_NAME}] Fetch error for {url}: {e}")
+                    
             health = await self._run_health_checks(products, len(product_urls))
 
         except Exception as e:
             logger.error(f"[{self.BRAND_NAME}] Scrape failed: {e}")
             health.add_issue("exception", f"Scrape failed: {str(e)}", "critical")
+        finally:
+            await self._close_browser()
 
         logger.info(f"[{self.BRAND_NAME}] Scrape complete: {len(products)} products")
         return products, health
+
+
 
     # ── Abstract method stubs (not used, but required by BaseScraper) ──
 

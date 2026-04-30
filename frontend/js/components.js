@@ -272,4 +272,91 @@ const components = {
             setTimeout(() => toast.remove(), 300);
         }, 4000);
     },
+
+    // ── Shopify Sync Components ───────────────────────────────────────
+    renderShopifyStats(status) {
+        return `
+            <div class="stat-card shopify-stat">
+                <div class="stat-icon purple">🛍️</div>
+                <div class="stat-info">
+                    <div class="stat-value">${status.is_running ? '🔄 Running' : '⏸️ Idle'}</div>
+                    <div class="stat-label">Sync Status</div>
+                </div>
+            </div>
+            <div class="stat-card shopify-stat">
+                <div class="stat-icon amber">⏳</div>
+                <div class="stat-info">
+                    <div class="stat-value">${status.pending_products}</div>
+                    <div class="stat-label">Pending</div>
+                </div>
+            </div>
+            <div class="stat-card shopify-stat">
+                <div class="stat-icon green">✅</div>
+                <div class="stat-info">
+                    <div class="stat-value">${status.completed_products}</div>
+                    <div class="stat-label">Uploaded</div>
+                </div>
+            </div>
+            <div class="stat-card shopify-stat">
+                <div class="stat-icon red">❌</div>
+                <div class="stat-info">
+                    <div class="stat-value">${status.failed_products}</div>
+                    <div class="stat-label">Failed</div>
+                </div>
+            </div>
+        `;
+    },
+
+    renderShopifySyncItem(job) {
+        const icon = this.statusIcon(job.status);
+        const duration = job.completed_at && job.started_at
+            ? this.duration(job.started_at, job.completed_at)
+            : job.status === 'running' ? 'Running...' : '-';
+
+        const brandLabel = job.brand_filter
+            ? `<span class="sync-brand-tag">${job.brand_filter}</span>`
+            : '<span class="sync-brand-tag all">All Brands</span>';
+
+        return `
+            <div class="history-item shopify-sync-item">
+                <div class="history-status-icon ${job.status}">${icon}</div>
+                <div class="history-info">
+                    <div class="history-brand">Sync Job #${job.id} ${brandLabel}</div>
+                    <div class="history-meta">
+                        <span>${this.formatDate(job.started_at)}</span>
+                        <span>Duration: ${duration}</span>
+                    </div>
+                </div>
+                <div class="history-stats shopify-sync-stats">
+                    <span class="sync-stat-completed">✅ ${job.completed || 0}</span>
+                    <span class="sync-stat-failed">❌ ${job.failed || 0}</span>
+                    <span class="sync-stat-skipped">⏭️ ${job.skipped || 0}</span>
+                </div>
+                <button class="btn btn-secondary btn-sm" onclick="app.viewShopifyLogs(${job.id})">📋 Logs</button>
+                <span class="stock-badge ${job.status === 'completed' ? 'in-stock' : job.status === 'failed' ? 'out-of-stock' : ''}">${job.status}</span>
+            </div>
+        `;
+    },
+
+    renderShopifySyncLogRow(log) {
+        const statusClass = log.status === 'completed' ? 'in-stock' : 'out-of-stock';
+        const statusText = log.status === 'completed' ? '✅ Completed' : '❌ Failed';
+        const shopifyId = log.shopify_product_id
+            ? `<code class="shopify-id">${log.shopify_product_id.replace('gid://shopify/Product/', '#')}</code>`
+            : '-';
+        const errorMsg = log.error_message
+            ? `<span class="log-error" title="${log.error_message}">${log.error_message.substring(0, 80)}${log.error_message.length > 80 ? '...' : ''}</span>`
+            : '-';
+
+        return `
+            <tr>
+                <td><strong>${log.product_name}</strong></td>
+                <td>${log.brand_name}</td>
+                <td><span class="stock-badge ${statusClass}" style="font-size: 0.75rem;">${statusText}</span></td>
+                <td>${log.images_uploaded}/${log.image_count}</td>
+                <td>${shopifyId}</td>
+                <td>${errorMsg}</td>
+            </tr>
+        `;
+    },
 };

@@ -38,15 +38,22 @@ class Product(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     brand_id = Column(Integer, ForeignKey("brands.id"), nullable=False, index=True)
-    name = Column(String(300), nullable=False)
-    url = Column(String(1000), nullable=False, unique=True)
-    image_url = Column(String(1000), nullable=True)
+    name = Column(Text, nullable=False)
+    url = Column(Text, nullable=False, unique=True)
+    image_url = Column(Text, nullable=True)
     price = Column(Float, nullable=True)
     currency = Column(String(10), default="USD")
-    category = Column(String(100), nullable=True)
+    category = Column(Text, nullable=True)
     description = Column(Text, nullable=True)
     last_scraped = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    # Shopify sync tracking
+    shopify_sync_status = Column(String(20), default="pending", index=True)
+    # Values: pending | processing | completed | failed
+    shopify_product_id = Column(String(100), nullable=True)
+    # Stores Shopify GID like "gid://shopify/Product/123456"
+    shopify_synced_at = Column(DateTime, nullable=True)
 
     # Relationships
     brand = relationship("Brand", back_populates="products")
@@ -61,12 +68,12 @@ class Variant(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False, index=True)
-    size = Column(String(50), nullable=True)
-    color = Column(String(100), nullable=True)
+    size = Column(Text, nullable=True)
+    color = Column(Text, nullable=True)
     color_hex = Column(String(7), nullable=True)  # e.g., "#FF5733"
     in_stock = Column(Boolean, default=True)
     quantity = Column(Integer, nullable=True)  # Only if site exposes it
-    sku = Column(String(100), nullable=True)
+    sku = Column(Text, nullable=True)
 
     # Relationships
     product = relationship("Product", back_populates="variants")
@@ -141,3 +148,47 @@ class AppSettings(Base):
     value = Column(String(500), nullable=False)
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc),
                         onupdate=lambda: datetime.now(timezone.utc))
+
+
+class ShopifySyncJob(Base):
+    """Tracks a batch Shopify sync run."""
+    __tablename__ = "shopify_sync_jobs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    status = Column(String(20), default="running")  # running, completed, failed
+    total_products = Column(Integer, default=0)
+    completed_count = Column(Integer, default=0)
+    failed_count = Column(Integer, default=0)
+    skipped_count = Column(Integer, default=0)
+    error_summary = Column(Text, nullable=True)
+    brand_filter = Column(String(100), nullable=True)  # null = all brands
+    started_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    completed_at = Column(DateTime, nullable=True)
+
+    # Relationships
+    logs = relationship("ShopifySyncLog", back_populates="sync_job", cascade="all, delete-orphan")
+
+    def __repr__(self):
+        return f"<ShopifySyncJob(id={self.id}, status='{self.status}')>"
+
+
+class ShopifySyncLog(Base):
+    """Per-product sync log entry."""
+    __tablename__ = "shopify_sync_logs"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    sync_job_id = Column(Integer, ForeignKey("shopify_sync_jobs.id"), nullable=False, index=True)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False, index=True)
+    status = Column(String(20), nullable=False)  # completed, failed
+    shopify_product_id = Column(String(100), nullable=True)
+    error_message = Column(Text, nullable=True)
+    image_count = Column(Integer, default=0)
+    images_uploaded = Column(Integer, default=0)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    # Relationships
+    sync_job = relationship("ShopifySyncJob", back_populates="logs")
+    product = relationship("Product")
+
+    def __repr__(self):
+        return f"<ShopifySyncLog(product_id={self.product_id}, status='{self.status}')>"

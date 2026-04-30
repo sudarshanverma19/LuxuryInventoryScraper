@@ -5,7 +5,7 @@ API: https://www.aloyoga.com/en-in/products.json?limit=250&page=N (15 pages)
 """
 
 import re
-import aiohttp
+import json
 import asyncio
 import logging
 from typing import Optional
@@ -13,16 +13,6 @@ from typing import Optional
 from scrapers.base_scraper import BaseScraper, ScrapedProduct, ScrapedVariant, HealthCheckResult
 
 logger = logging.getLogger(__name__)
-
-HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/131.0.0.0 Safari/537.36"
-    ),
-    "Accept": "application/json",
-}
-
 
 class AloYogaScraper(BaseScraper):
     BRAND_SLUG = "alo-yoga"
@@ -33,49 +23,63 @@ class AloYogaScraper(BaseScraper):
     HEALTH_SELECTORS = {}
 
     async def scrape(self) -> tuple[list[ScrapedProduct], HealthCheckResult]:
-        """Override scrape() to use Shopify JSON API directly."""
+        """Override scrape() to use Playwright for JSON API."""
         health = HealthCheckResult()
         products = []
 
-        logger.info(f"[{self.BRAND_NAME}] Starting scrape using JSON API...")
+        logger.info(f"[{self.BRAND_NAME}] Starting scrape using Playwright JSON API...")
 
         try:
-            async with aiohttp.ClientSession(headers=HEADERS) as session:
-                page_num = 1
-                while True:
-                    url = f"{self.PRODUCTS_API_URL}?limit=250&page={page_num}"
-                    logger.info(f"[{self.BRAND_NAME}] Fetching page {page_num}...")
+            await self._start_browser()
+            page = await self._new_page()
 
-                    async with session.get(url) as response:
-                        if response.status != 200:
-                            logger.error(f"[{self.BRAND_NAME}] API returned {response.status}")
-                            health.add_issue("api_error", f"API returned {response.status} on page {page_num}", "critical")
+            page_num = 1
+            while True:
+                url = f"{self.PRODUCTS_API_URL}?limit=250&page={page_num}"
+                logger.info(f"[{self.BRAND_NAME}] Fetching page {page_num}...")
+
+                response = await page.goto(url, wait_until="domcontentloaded", timeout=30000)
+                
+                if not response or response.status != 200:
+                    # Let's try to parse it anyway in case it's a 403 with JSON payload, 
+                    # but typically if it's not 200, it's blocked.
+                    if response and response.status in (429, 403, 503):
+                        logger.warning(f"[{self.BRAND_NAME}] API returned {response.status}")
+                        if response.status == 403:
                             break
+                    
+                try:
+                    data = await response.json()
+                except Exception as e:
+                    logger.error(f"[{self.BRAND_NAME}] Failed to parse JSON on page {page_num}: {e}")
+                    health.add_issue("api_error", f"Failed to parse JSON on page {page_num}", "critical")
+                    break
 
-                        data = await response.json()
-                        page_products = data.get("products", [])
+                page_products = data.get("products", [])
 
-                        if not page_products:
-                            break
+                if not page_products:
+                    break
 
-                        for item in page_products:
-                            product_url = f"{self.BASE_URL}products/{item['handle']}"
-                            parsed = self._parse_shopify_json(item, product_url)
-                            products.append(parsed)
+                for item in page_products:
+                    product_url = f"{self.BASE_URL}products/{item['handle']}"
+                    parsed = self._parse_shopify_json(item, product_url)
+                    products.append(parsed)
 
-                        logger.info(f"[{self.BRAND_NAME}] Page {page_num}: {len(page_products)} products")
+                logger.info(f"[{self.BRAND_NAME}] Page {page_num}: {len(page_products)} products")
 
-                        if len(page_products) < 250:
-                            break
+                if len(page_products) < 250:
+                    break
 
-                        page_num += 1
-                        await asyncio.sleep(0.5)
+                page_num += 1
+                await asyncio.sleep(0.5)
 
             health = await self._run_health_checks(products, len(products))
 
         except Exception as e:
             logger.error(f"[{self.BRAND_NAME}] Scrape failed: {e}")
             health.add_issue("exception", f"Scrape failed: {str(e)}", "critical")
+        finally:
+            await self._close_browser()
 
         logger.info(f"[{self.BRAND_NAME}] Scrape complete: {len(products)} products")
         return products, health
@@ -105,11 +109,13 @@ class AloYogaScraper(BaseScraper):
 
         variants = []
         for v in data.get("variants", []):
+            title = v.get("title", "Default Title")
+            sku = v.get("sku") or ""
             variants.append(ScrapedVariant(
-                size=v.get("title", "Default Title"),
+                size=title[:50],  # Limit size string to DB max 50 chars
                 in_stock=v.get("available", False),
                 quantity=v.get("inventory_quantity"),
-                sku=v.get("sku") or None,
+                sku=sku[:100] if sku else None,  # Limit SKU string to DB max 100 chars
             ))
 
         price = None
@@ -125,12 +131,12 @@ class AloYogaScraper(BaseScraper):
             variants.append(ScrapedVariant(in_stock=True))
 
         return ScrapedProduct(
-            name=name,
-            url=url,
+            name=name[:300],  # Limit name to DB max 300 chars
+            url=url[:1000],   # Limit URL to DB max 1000 chars
             price=price,
             currency="INR",
-            image_url=image_url,
-            category=category,
+            image_url=image_url[:1000] if image_url else None,
+            category=category[:100],
             description=description,
             variants=variants,
         )

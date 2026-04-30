@@ -7,7 +7,8 @@ from database.models import Base
 from config import DATABASE_URL, BRANDS
 
 # Create async engine
-engine = create_async_engine(DATABASE_URL, echo=False)
+connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+engine = create_async_engine(DATABASE_URL, echo=False, connect_args=connect_args)
 
 # Session factory
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
@@ -55,3 +56,13 @@ async def get_session() -> AsyncSession:
 async def shutdown_db():
     """Dispose engine on app shutdown."""
     await engine.dispose()
+
+
+async def clear_database():
+    """Drop all tables, recreate them, and re-seed brands. Useful for clearing local DB."""
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+        await conn.run_sync(Base.metadata.create_all)
+    
+    # Re-seed brands
+    await seed_brands()

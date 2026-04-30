@@ -24,11 +24,16 @@ from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import HOST, PORT, BRANDS
-from database.db import init_db, shutdown_db, get_session
+from database.db import init_db, shutdown_db, get_session, clear_database
 from database.models import (
-    Brand, Product, Variant, ScrapeJob, StockAlert, ScraperHealthAlert
+    Brand, Product, Variant, ScrapeJob, StockAlert, ScraperHealthAlert,
+    ShopifySyncJob, ShopifySyncLog,
 )
 from services.scrape_service import create_scrape_job, complete_scrape_job, fail_scrape_job
+from shopify_sync.sync_orchestrator import (
+    run_sync, get_sync_status, get_sync_history,
+    get_sync_logs, retry_failed_products, is_sync_running,
+)
 from services.alert_service import (
     get_active_stock_alerts, get_health_alerts,
     get_alert_threshold, set_alert_threshold,
@@ -160,6 +165,19 @@ async def _run_scrape(brand_slug: str, job_id: int):
 #  API ENDPOINTS
 # ══════════════════════════════════════════════════════════════════════════
 
+# ── System & DB ────────────────────────────────────────────────────────────
+
+@app.delete("/api/db/clear")
+async def clear_db_endpoint():
+    """Clear all data from the database (except brands which are re-seeded)."""
+    try:
+        await clear_database()
+        return {"message": "Database cleared successfully."}
+    except Exception as e:
+        logger.error(f"Failed to clear database: {e}")
+        raise HTTPException(500, f"Failed to clear database: {e}")
+
+
 # ── Brands ─────────────────────────────────────────────────────────────────
 
 @app.get("/api/brands")
@@ -220,13 +238,41 @@ async def list_brands(session: AsyncSession = Depends(get_session)):
 
 # ── Scraping ───────────────────────────────────────────────────────────────
 
+# Concurrency limiter for scrape-all: max 3 browsers at once
+_scrape_semaphore = asyncio.Semaphore(3)
+
+# Priority order: 1 = fastest (JSON API), 2 = medium (embedded JSON), 3 = slowest (HTML scraping)
+_SCRAPE_PRIORITY = {
+    # Category 1: Direct JSON API via Chromium (fastest)
+    "alo-yoga": 1, "anta": 1, "brooks-running": 1, "crepdog-crew": 1,
+    "fenty-beauty": 1, "hex-beauty-lab": 1, "hourglass": 1,
+    "hustle-culture": 1, "hype-elixir": 1,
+    "magikart": 1, "represent-clo": 1, "youngla": 1, "tcg-republic": 1,
+    # Category 2: Embedded JSON via Chromium (medium)
+    "gymshark": 2, "skims": 2,
+    # Category 3: Pure HTML scraping (slowest) — runs last
+    "acne-studios": 3, "maison-margiela": 3, "drunk-elephant": 3,
+    "on-running": 3, "hoka": 3, "bored-game-company": 3, "hypefly": 3,
+}
+
+
+async def _run_scrape_throttled(brand_slug: str, job_id: int):
+    """Wrapper that limits concurrent scrapes to avoid resource exhaustion."""
+    async with _scrape_semaphore:
+        await _run_scrape(brand_slug, job_id)
+
+
 @app.post("/api/scrape/all")
 async def start_scrape_all(
     session: AsyncSession = Depends(get_session),
 ):
-    """Start scraping all brands in parallel."""
+    """Start scraping all brands with controlled concurrency (max 3 at a time).
+    Category 1 & 2 (fast API scrapers) run first, Category 3 (slow HTML) runs last."""
     result = await session.execute(select(Brand))
     brands = result.scalars().all()
+
+    # Sort by priority: Cat 1 first, then Cat 2, then Cat 3
+    brands = sorted(brands, key=lambda b: _SCRAPE_PRIORITY.get(b.slug, 3))
 
     started = []
     skipped = []
@@ -243,8 +289,8 @@ async def start_scrape_all(
 
         job = await create_scrape_job(session, brand.id)
         _running_jobs[brand.slug] = job.id
-        # Fire-and-forget async task — runs in parallel
-        asyncio.create_task(_run_scrape(brand.slug, job.id))
+        # Throttled: max 3 browsers running concurrently
+        asyncio.create_task(_run_scrape_throttled(brand.slug, job.id))
         started.append(brand.slug)
 
     return {"started": started, "skipped": skipped}
@@ -587,6 +633,117 @@ async def dashboard_stats(session: AsyncSession = Depends(get_session)):
         "active_health_alerts": active_health_alerts,
         "last_scrape": last_scrape.isoformat() if last_scrape else None,
     }
+
+
+# ══════════════════════════════════════════════════════════════════════════
+#  SHOPIFY SYNC ENDPOINTS
+# ══════════════════════════════════════════════════════════════════════════
+
+# Track running Shopify sync task
+_shopify_sync_task: Optional[asyncio.Task] = None
+
+
+async def _run_shopify_sync(brand_slug: Optional[str] = None, publish_mode: str = "DRAFT"):
+    """Background task to run Shopify sync."""
+    global _shopify_sync_task
+    try:
+        await run_sync(brand_slug, publish_mode)
+    except Exception as e:
+        logger.error(f"Shopify sync task failed: {e}")
+    finally:
+        _shopify_sync_task = None
+
+
+class ShopifySyncRequest(BaseModel):
+    mode: str = "draft"  # "draft" or "publish"
+
+
+@app.get("/api/shopify/config")
+async def shopify_config():
+    """Check if Shopify is configured."""
+    from config import SHOPIFY_STORE_URL, SHOPIFY_ACCESS_TOKEN
+    return {
+        "is_configured": bool(SHOPIFY_STORE_URL and SHOPIFY_ACCESS_TOKEN),
+        "store_url": SHOPIFY_STORE_URL if SHOPIFY_STORE_URL else None,
+    }
+
+
+@app.post("/api/shopify/sync")
+async def start_shopify_sync(req: ShopifySyncRequest = ShopifySyncRequest()):
+    """Start syncing all pending products to Shopify."""
+    global _shopify_sync_task
+
+    if is_sync_running():
+        return {"error": "A sync job is already running"}
+
+    from config import SHOPIFY_STORE_URL, SHOPIFY_ACCESS_TOKEN
+    if not SHOPIFY_STORE_URL or not SHOPIFY_ACCESS_TOKEN:
+        raise HTTPException(400, "Shopify credentials not configured")
+
+    publish_mode = "ACTIVE" if req.mode.lower() == "publish" else "DRAFT"
+    _shopify_sync_task = asyncio.create_task(_run_shopify_sync(publish_mode=publish_mode))
+
+    return {"message": f"Shopify sync started for all pending products (mode: {publish_mode})"}
+
+
+@app.post("/api/shopify/sync/{brand_slug}")
+async def start_shopify_sync_brand(
+    brand_slug: str,
+    req: ShopifySyncRequest = ShopifySyncRequest(),
+    session: AsyncSession = Depends(get_session),
+):
+    """Start syncing pending products for a specific brand to Shopify."""
+    global _shopify_sync_task
+
+    if is_sync_running():
+        return {"error": "A sync job is already running"}
+
+    # Validate brand exists
+    result = await session.execute(
+        select(Brand).where(Brand.slug == brand_slug)
+    )
+    brand = result.scalar_one_or_none()
+    if not brand:
+        raise HTTPException(404, f"Brand '{brand_slug}' not found")
+
+    from config import SHOPIFY_STORE_URL, SHOPIFY_ACCESS_TOKEN
+    if not SHOPIFY_STORE_URL or not SHOPIFY_ACCESS_TOKEN:
+        raise HTTPException(400, "Shopify credentials not configured")
+
+    publish_mode = "ACTIVE" if req.mode.lower() == "publish" else "DRAFT"
+    _shopify_sync_task = asyncio.create_task(_run_shopify_sync(brand_slug, publish_mode))
+
+    return {"message": f"Shopify sync started for {brand.name} (mode: {publish_mode})"}
+
+
+@app.get("/api/shopify/sync/status")
+async def shopify_sync_status():
+    """Get current sync status."""
+    return await get_sync_status()
+
+
+@app.get("/api/shopify/sync/history")
+async def shopify_sync_history(
+    limit: int = Query(20, ge=1, le=100),
+):
+    """Get sync job history."""
+    return await get_sync_history(limit)
+
+
+@app.get("/api/shopify/sync/logs/{job_id}")
+async def shopify_sync_logs(job_id: int):
+    """Get per-product sync logs for a job."""
+    return await get_sync_logs(job_id)
+
+
+@app.post("/api/shopify/sync/retry-failed")
+async def shopify_retry_failed():
+    """Re-queue all failed products back to pending."""
+    if is_sync_running():
+        return {"error": "Cannot retry while a sync job is running"}
+
+    count = await retry_failed_products()
+    return {"message": f"Re-queued {count} failed products to pending", "count": count}
 
 
 # ── Static Files (Frontend) ───────────────────────────────────────────────

@@ -39,6 +39,17 @@ const api = {
         return res.json();
     },
 
+    async delete(endpoint) {
+        const res = await fetch(`${API_BASE}${endpoint}`, {
+            method: 'DELETE',
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({ detail: res.statusText }));
+            throw new Error(err.detail || 'Request failed');
+        }
+        return res.json();
+    },
+
     // ── Brands
     getBrands: () => api.get('/api/brands'),
 
@@ -79,6 +90,16 @@ const api = {
         window.location.href = `${API_BASE}/api/export?${qs.toString()}`;
     },
 
-    // ── Stats
+    // ── Stats & DB
     getStats: () => api.get('/api/stats'),
+    clearDatabase: () => api.delete('/api/db/clear'),
+
+    // ── Shopify Sync
+    getShopifyConfig: () => api.get('/api/shopify/config'),
+    startShopifySync: (mode = 'draft') => api.post('/api/shopify/sync', { mode }),
+    startShopifySyncBrand: (slug, mode = 'draft') => api.post(`/api/shopify/sync/${slug}`, { mode }),
+    getShopifySyncStatus: () => api.get('/api/shopify/sync/status'),
+    getShopifySyncHistory: (limit = 20) => api.get(`/api/shopify/sync/history?limit=${limit}`),
+    getShopifySyncLogs: (jobId) => api.get(`/api/shopify/sync/logs/${jobId}`),
+    retryFailedSync: () => api.post('/api/shopify/sync/retry-failed'),
 };

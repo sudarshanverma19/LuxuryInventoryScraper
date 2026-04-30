@@ -22,3 +22,6 @@ pydantic==2.10.3
 httpx==0.28.1
 aiohttp==3.13.5
 brotli==1.2.0
+
+# Shopify Sync (image compression — optional)
+Pillow>=11.1.0

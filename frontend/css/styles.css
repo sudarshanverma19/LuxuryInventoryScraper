@@ -1059,6 +1059,270 @@ body {
     to { opacity: 1; transform: translateX(0); }
 }
 
+/* ── Shopify Sync Page ─────────────────────────────────────────────── */
+.shopify-stats-bar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.shopify-config-warning {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.08), rgba(239, 68, 68, 0.08));
+    border: 1px solid rgba(245, 158, 11, 0.25);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem 2rem;
+    margin-bottom: 2rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    animation: slideDown 0.3s ease;
+}
+
+.shopify-config-warning.hidden { display: none; }
+
+.config-warning-icon {
+    font-size: 2rem;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.config-warning-text {
+    flex: 1;
+}
+
+.config-warning-text strong {
+    font-size: 1rem;
+    color: var(--warning);
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+.config-warning-text p {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    margin: 0;
+    line-height: 1.5;
+}
+
+.config-warning-text code {
+    background: rgba(124, 92, 252, 0.15);
+    color: var(--accent-purple-light);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-family: 'SFMono-Regular', Consolas, monospace;
+}
+
+.shopify-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.sync-mode-select {
+    border: 1.5px solid var(--accent-purple);
+    background: rgba(124, 92, 252, 0.06);
+    font-weight: 500;
+    min-width: 170px;
+    transition: all var(--transition-fast);
+}
+
+.sync-mode-select:focus {
+    border-color: var(--accent-purple-light);
+    box-shadow: 0 0 0 3px rgba(124, 92, 252, 0.15);
+}
+
+.sync-mode-select.publish-mode {
+    border-color: var(--warning);
+    background: rgba(245, 158, 11, 0.08);
+}
+
+/* Progress bar */
+.shopify-progress {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1.5rem;
+    animation: slideDown 0.3s ease;
+}
+
+.shopify-progress.hidden { display: none; }
+
+.progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.progress-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--accent-purple-light);
+}
+
+.progress-stats {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.progress-bar-track {
+    height: 8px;
+    background: var(--bg-secondary);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    background: var(--accent-gradient);
+    border-radius: 10px;
+    transition: width 0.5s ease;
+    position: relative;
+}
+
+.progress-bar-fill::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.15) 50%,
+        transparent 100%
+    );
+    animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+/* Sync history */
+.shopify-history {
+    margin-top: 2rem;
+}
+
+.sub-section-title {
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: var(--text-primary);
+}
+
+.shopify-history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.shopify-sync-item {
+    flex-wrap: wrap;
+}
+
+.shopify-sync-stats {
+    display: flex;
+    gap: 0.75rem;
+    font-size: 0.8rem;
+}
+
+.sync-stat-completed { color: var(--success); font-weight: 600; }
+.sync-stat-failed { color: var(--danger); font-weight: 600; }
+.sync-stat-skipped { color: var(--text-muted); font-weight: 600; }
+
+.sync-brand-tag {
+    display: inline-block;
+    background: rgba(124, 92, 252, 0.12);
+    color: var(--accent-purple-light);
+    padding: 1px 8px;
+    border-radius: 50px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    margin-left: 6px;
+    vertical-align: middle;
+}
+
+.sync-brand-tag.all {
+    background: rgba(0, 212, 170, 0.12);
+    color: var(--accent-teal);
+}
+
+/* Log viewer */
+.shopify-log-viewer {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    margin-top: 2rem;
+    overflow: hidden;
+    animation: slideDown 0.3s ease;
+}
+
+.shopify-log-viewer.hidden { display: none; }
+
+.log-viewer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+}
+
+.log-viewer-header .sub-section-title {
+    margin-bottom: 0;
+}
+
+.log-viewer-summary {
+    display: flex;
+    gap: 1.5rem;
+    padding: 0.75rem 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+    flex-wrap: wrap;
+}
+
+.log-stat {
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.log-stat.completed { color: var(--success); }
+.log-stat.failed { color: var(--danger); }
+.log-stat.total { color: var(--text-secondary); }
+
+.log-viewer-table-wrapper {
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.shopify-id {
+    background: rgba(0, 212, 170, 0.12);
+    color: var(--accent-teal);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-family: 'SFMono-Regular', Consolas, monospace;
+}
+
+.log-error {
+    color: var(--danger);
+    font-size: 0.75rem;
+    max-width: 300px;
+    display: inline-block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: middle;
+    cursor: help;
+}
+
 /* ── Responsive ────────────────────────────────────────────────────── */
 @media (max-width: 768px) {
     .main-content { padding: 1rem; }
@@ -1068,4 +1332,8 @@ body {
     .table-controls { flex-direction: column; }
     .search-input { min-width: auto; }
     .alert-grid { grid-template-columns: 1fr; }
+    .shopify-stats-bar { grid-template-columns: repeat(2, 1fr); }
+    .shopify-controls { flex-direction: column; align-items: stretch; }
+    .shopify-sync-item { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+    .log-viewer-table-wrapper { overflow-x: auto; }
 }
